@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="rw">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LiveTrack — Smart Livestock RFID Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<style>
+:root{
+  --bg:#050d0a;--surface:rgba(255,255,255,.055);
+  --border:rgba(255,255,255,.10);--border2:rgba(255,255,255,.06);
+  --accent:#00e896;--accent2:#00bfff;
+  --danger:#ff4d6d;--warn:#ffbe00;
+  --text:#e8f5f0;--muted:rgba(232,245,240,.45);
+  --glass:rgba(10,28,22,.55);
+  --r:16px;--rs:10px;
+  --shadow:0 8px 32px rgba(0,0,0,.6);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ICONS */
+.ico{width:16px;height:16px;display:inline-block;vertical-align:-3px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ico-lg{width:18px;height:18px}
+.ico-xl{width:22px;height:22px}
+.ico-xxl{width:28px;height:28px}
+
+/* ── BG ── */
+.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-canvas::before{
+  content:'';position:absolute;inset:-50%;
+  background:radial-gradient(ellipse 80% 50% at 10% 20%,rgba(0,232,150,.12) 0%,transparent 70%),
+             radial-gradient(ellipse 60% 60% at 90% 80%,rgba(0,191,255,.09) 0%,transparent 65%),
+             radial-gradient(ellipse 50% 40% at 50% 50%,rgba(0,100,60,.06) 0%,transparent 70%);
+  animation:bgshift 18s ease-in-out infinite alternate;
+}
+@keyframes bgshift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(2%,3%) scale(1.04)}100%{transform:translate(-2%,-2%) scale(1.02)}}
+.bg-canvas::after{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen,#createScreen{
+  position:fixed;inset:0;z-index:9999;background:rgba(3,10,7,.97);
+  display:flex;align-items:center;justify-content:center;
+  animation:fadeIn .3s ease;
+}
+#loginScreen.hidden,#createScreen.hidden{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.login-box{
+  background:rgba(10,30,20,.9);border:1px solid rgba(0,232,150,.2);
+  border-radius:24px;padding:40px 38px;width:100%;max-width:420px;
+  box-shadow:0 30px 80px rgba(0,0,0,.8),0 0 60px rgba(0,232,150,.05);
+  animation:slideUp .4s cubic-bezier(.22,1,.36,1);
+}
+@keyframes slideUp{from{transform:translateY(28px);opacity:0}to{transform:translateY(0);opacity:1}}
+.login-logo{display:flex;align-items:center;gap:14px;margin-bottom:30px;justify-content:center}
+.login-logo-icon{
+  width:52px;height:52px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:16px;display:grid;place-items:center;box-shadow:0 0 30px rgba(0,232,150,.35)
+}
+.login-logo-icon svg{color:#06140f}
+.login-logo h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:900}
+.login-logo p{font-size:12px;color:var(--muted)}
+.login-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:6px;text-align:center}
+.login-sub{font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:28px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px}
+.login-field input,.login-field select{
+  width:100%;padding:12px 15px;border-radius:var(--rs);border:1px solid var(--border);
+  background:rgba(0,0,0,.35);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  transition:border-color .2s,box-shadow .2s;outline:none;
+}
+.login-field input:focus,.login-field select:focus{border-color:rgba(0,232,150,.5);box-shadow:0 0 0 3px rgba(0,232,150,.08)}
+.login-field select option{background:#0d1f18}
+.login-btn{
+  width:100%;padding:13px;background:linear-gradient(135deg,rgba(0,232,150,.25),rgba(0,191,255,.15));
+  border:1px solid rgba(0,232,150,.35);border-radius:var(--rs);color:var(--accent);
+  font-family:'Syne',sans-serif;font-size:14px;font-weight:800;letter-spacing:.04em;
+  cursor:pointer;transition:all .2s;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;gap:8px
+}
+.login-btn:hover{background:linear-gradient(135deg,rgba(0,232,150,.35),rgba(0,191,255,.22));transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,232,150,.15)}
+.login-btn:active{transform:translateY(0)}
+.login-err{text-align:center;font-size:12.5px;color:var(--danger);margin-top:12px;min-height:18px}
+.login-hint{margin-top:22px;padding:14px;background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:var(--rs)}
+.login-hint p{font-size:11.5px;color:var(--muted);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.login-hint .cred{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2);display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.login-hint .cred span{background:rgba(0,191,255,.07);padding:3px 8px;border-radius:5px;border:1px solid rgba(0,191,255,.15)}
+.small-link{
+  margin-top:14px;text-align:center;font-size:12px;color:var(--muted);
+}
+.small-link a{color:var(--accent2);text-decoration:none;font-weight:700}
+.small-link a:hover{text-decoration:underline}
+
+/* ── APP ── */
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;padding:18px;gap:18px}
+.card{
+  background:var(--glass);border:1px solid var(--border);border-radius:var(--r);
+  backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.07);transition:border-color .2s;
+}
+.header{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.logo-block{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:13px;display:grid;place-items:center;
+  box-shadow:0 0 20px rgba(0,232,150,.3);flex-shrink:0
+}
+.logo-icon svg{color:#06140f}
+.logo-text h1{font-family:'Syne',sans-serif;font-size:19px;font-weight:900;letter-spacing:-.3px}
+.logo-text p{font-size:11px;color:var(--muted);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* User badge */
+.user-badge{
+  display:flex;align-items:center;gap:8px;padding:7px 13px;
+  border-radius:50px;border:1px solid var(--border);background:var(--surface);
+  font-size:12px;font-weight:600;
+}
+.user-badge .role-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.role-admin .role-dot{background:var(--accent)}
+.role-veterinarian .role-dot{background:var(--accent2)}
+.role-owner .role-dot{background:var(--warn)}
+
+.mode-badge{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;padding:7px 13px;border-radius:50px;border:1px solid var(--border);background:var(--surface);letter-spacing:.04em;transition:all .3s}
+.mode-badge.on{border-color:rgba(0,232,150,.4);background:rgba(0,232,150,.12);color:var(--accent)}
+.mode-badge.off{border-color:rgba(255,77,109,.35);background:rgba(255,77,109,.10);color:var(--danger)}
+
+.btn{
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:9px 15px;border-radius:var(--rs);
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  cursor:pointer;transition:all .18s;white-space:nowrap;display:inline-flex;align-items:center;gap:7px
+}
+.btn:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.18);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-accent{background:rgba(0,232,150,.18);border-color:rgba(0,232,150,.35);color:var(--accent)}
+.btn-accent:hover{background:rgba(0,232,150,.28)}
+.btn-danger{background:rgba(255,77,109,.15);border-color:rgba(255,77,109,.30);color:var(--danger)}
+.btn-danger:hover{background:rgba(255,77,109,.25)}
+.btn-warn{background:rgba(255,190,0,.15);border-color:rgba(255,190,0,.30);color:var(--warn)}
+.btn-warn:hover{background:rgba(255,190,0,.24)}
+.btn-sm{padding:7px 11px;font-size:12px}
+.btn-full{width:100%;justify-content:center}
+.btn-logout{background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.25);color:var(--danger)}
+.btn-logout:hover{background:rgba(255,77,109,.22)}
+
+/* ── TABS ── */
+.tabs-bar{display:flex;gap:3px;padding:5px 7px;flex-wrap:wrap}
+.tab{
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:9px 15px;border-radius:8px;
+  border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:7px
+}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.tab.active{background:rgba(0,232,150,.15);color:var(--accent);box-shadow:0 0 0 1px rgba(0,232,150,.25) inset}
+.tab.hidden{display:none}
+
+/* ── PAGES ── */
+.main{display:grid;gap:32px}
+.page{display:none}
+.page.active{display:block}
+.page-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:30px}
+@media(max-width:860px){.page-grid{grid-template-columns:1fr}}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:18px 20px 12px;border-bottom:1px solid var(--border2)}
+.section-head h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
+.section-body{padding:16px 20px 20px}
+
+/* ── FORMS ── */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+input,select,textarea{
+  width:100%;padding:10px 13px;border-radius:var(--rs);border:1px solid var(--border);
+  background:rgba(0,0,0,.28);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13.5px;
+  transition:border-color .2s,box-shadow .2s;outline:none
+}
+input:focus,select:focus,textarea:focus{border-color:rgba(0,232,150,.5);box-shadow:0 0 0 3px rgba(0,232,150,.08)}
+textarea{resize:none;height:80px}
+select option{background:#0d1f18}
+.form-row{display:flex;gap:10px;align-items:flex-end}
+.form-row input{flex:1}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.col-span-2{grid-column:1/-1}
+.checkbox-row{display:flex;gap:20px;margin-top:4px}
+.checkbox-label{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;user-select:none}
+.checkbox-label input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:var(--accent);cursor:pointer}
+.checkbox-label input:disabled{opacity:.3;cursor:not-allowed}
+
+/* ── PILLS / TABLES ── */
+.pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:50px;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;border:1px solid var(--border);background:var(--surface)}
+.pill-ok{border-color:rgba(0,232,150,.4);background:rgba(0,232,150,.10);color:var(--accent)}
+.pill-sick{border-color:rgba(255,77,109,.4);background:rgba(255,77,109,.10);color:var(--danger)}
+.pill-preg{border-color:rgba(255,190,0,.4);background:rgba(255,190,0,.10);color:var(--warn)}
+.pill-found{border-color:rgba(0,232,150,.4);background:rgba(0,232,150,.08);color:var(--accent)}
+.pill-nf{border-color:rgba(255,77,109,.4);background:rgba(255,77,109,.08);color:var(--danger)}
+.pill-admin{border-color:rgba(0,232,150,.4);background:rgba(0,232,150,.10);color:var(--accent)}
+.pill-vet{border-color:rgba(0,191,255,.4);background:rgba(0,191,255,.10);color:var(--accent2)}
+.pill-owner{border-color:rgba(255,190,0,.4);background:rgba(255,190,0,.10);color:var(--warn)}
+
+.table-wrap{overflow-x:auto;margin-top:2px}
+table{width:100%;border-collapse:collapse}
+thead th{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  padding:10px 12px;border-bottom:1px solid var(--border2);white-space:nowrap;background:rgba(0,0,0,.15)
+}
+tbody td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--border2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.025)}
+.tag-mono{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2)}
+.actions-cell{display:flex;gap:6px;flex-wrap:wrap}
+.empty-row td{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+th.hidden-col,td.hidden-col{display:none}
+
+.result-box{background:rgba(0,0,0,.2);border:1px solid var(--border2);border-radius:var(--rs);padding:14px;min-height:80px}
+.animal-card h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.animal-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.animal-meta .item{font-size:12.5px}
+.animal-meta .item span{color:var(--muted);font-size:11px;display:block}
+
+.msg{font-size:12.5px;margin-top:10px;min-height:18px;line-height:1.5}
+.msg.ok{color:var(--accent)}
+.msg.err{color:var(--danger)}
+.filter-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.edit-banner{
+  display:none;align-items:center;gap:8px;background:rgba(255,190,0,.1);
+  border:1px solid rgba(255,190,0,.3);border-radius:var(--rs);
+  padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--warn);margin-bottom:14px
+}
+.edit-banner.show{display:flex}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:860px){.stats-row{grid-template-columns:1fr 1fr}}
+.stat-card{padding:20px 22px}
+.stat-num{font-family:'Syne',sans-serif;font-size:34px;font-weight:900;line-height:1;margin-bottom:4px}
+.stat-lbl{font-size:12px;color:var(--muted);font-weight:600}
+
+/* ── ACCESS DENIED ── */
+.access-denied{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;gap:14px;text-align:center;
+}
+.access-denied .icon{opacity:.4}
+.access-denied h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:var(--muted)}
+.access-denied p{font-size:13px;color:var(--muted);max-width:300px;line-height:1.6}
+
+/* ── ROLE BANNER ── */
+.role-banner{
+  display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--rs);
+  font-size:12.5px;font-weight:600;margin-bottom:14px;
+}
+.role-banner.vet{background:rgba(0,191,255,.08);border:1px solid rgba(0,191,255,.2);color:var(--accent2)}
+.role-banner.owner{background:rgba(255,190,0,.08);border:1px solid rgba(255,190,0,.2);color:var(--warn)}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{
+  backdrop-filter:blur(14px);border-radius:10px;padding:11px 16px;font-size:13px;font-weight:600;
+  display:flex;align-items:center;gap:8px;pointer-events:none;
+  animation:toast-in .25s cubic-bezier(.22,1,.36,1);min-width:220px;max-width:320px;
+}
+.toast.ok{background:rgba(0,35,25,.92);border:1px solid rgba(0,232,150,.3);color:var(--accent)}
+.toast.err{background:rgba(40,5,15,.92);border:1px solid rgba(255,77,109,.3);color:var(--danger)}
+.toast.info{background:rgba(5,20,35,.92);border:1px solid rgba(0,191,255,.3);color:var(--accent2)}
+@keyframes toast-in{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── DIALOG ── */
+.overlay{display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.dialog{
+  background:#0b1e17;border:1px solid var(--border);border-radius:20px;
+  padding:28px;max-width:420px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.7);
+  animation:dlg-in .2s ease
+}
+@keyframes dlg-in{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.dialog h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:10px}
+.dialog p{font-size:13.5px;color:var(--muted);line-height:1.6}
+.dialog-actions{display:flex;gap:10px;margin-top:20px}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:99px}
+</style>
+</head>
+
+<body>
+<div class="bg-canvas"></div>
+
+<!-- SVG ICONS DEFINITIONS -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-cow" viewBox="0 0 24 24">
+      <path d="M5 8v6c0 3 2 5 5 5h4c3 0 5-2 5-5V8"/>
+      <path d="M7 8c0-2 2-3 5-3s5 1 5 3"/>
+      <path d="M9 19v2M15 19v2"/>
+      <path d="M4 10l-2-2M20 10l2-2"/>
+      <path d="M9 12h6"/>
+    </symbol>
+
+    <symbol id="i-lock" viewBox="0 0 24 24">
+      <rect x="5" y="11" width="14" height="10" rx="2"/>
+      <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+    </symbol>
+
+    <symbol id="i-user" viewBox="0 0 24 24">
+      <path d="M20 21a8 8 0 0 0-16 0"/>
+      <circle cx="12" cy="8" r="4"/>
+    </symbol>
+
+    <symbol id="i-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"/>
+    </symbol>
+
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M21 12a9 9 0 1 1-3-6.7"/>
+      <path d="M21 3v7h-7"/>
+    </symbol>
+
+    <symbol id="i-logout" viewBox="0 0 24 24">
+      <path d="M10 17l-5-5 5-5"/>
+      <path d="M5 12h12"/>
+      <path d="M17 21h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/>
+    </symbol>
+
+    <symbol id="i-trash" viewBox="0 0 24 24">
+      <path d="M3 6h18"/>
+      <path d="M8 6V4h8v2"/>
+      <path d="M19 6l-1 16H6L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+    </symbol>
+
+    <symbol id="i-edit" viewBox="0 0 24 24">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </symbol>
+
+    <symbol id="i-eye" viewBox="0 0 24 24">
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </symbol>
+
+    <symbol id="i-activity" viewBox="0 0 24 24">
+      <path d="M3 12h4l2-5 4 10 2-5h6"/>
+    </symbol>
+
+    <symbol id="i-clipboard" viewBox="0 0 24 24">
+      <rect x="8" y="4" width="8" height="4" rx="1"/>
+      <path d="M6 8v14h12V8"/>
+    </symbol>
+
+    <symbol id="i-heart" viewBox="0 0 24 24">
+      <path d="M12 21s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9Z"/>
+    </symbol>
+
+    <symbol id="i-log" viewBox="0 0 24 24">
+      <path d="M4 4h16v16H4z"/>
+      <path d="M8 8h8M8 12h8M8 16h5"/>
+    </symbol>
+
+    <symbol id="i-users" viewBox="0 0 24 24">
+      <path d="M16 21a6 6 0 0 0-12 0"/>
+      <circle cx="10" cy="8" r="4"/>
+      <path d="M22 21a5 5 0 0 0-7-4"/>
+      <circle cx="17" cy="9" r="3"/>
+    </symbol>
+
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="M20 6 9 17l-5-5"/>
+    </symbol>
+
+    <symbol id="i-x" viewBox="0 0 24 24">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </symbol>
+
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <path d="M12 9v4"/>
+      <path d="M12 17h.01"/>
+      <path d="M10 3h4l8 18H2Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg class="ico ico-xxl"><use href="#i-cow"></use></svg>
+      </div>
+      <div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:24px;font-weight:900;margin-bottom:2px;display:block">LiveTrack</h1>
+        <p style="font-size:11.5px;color:var(--muted)">Smart Livestock RFID System</p>
+      </div>
+    </div>
+
+    <h2 class="login-title">Injira mu Konti</h2>
+    <p class="login-sub">Injira ukoresheje username na password yawe</p>
+
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="loginUsername" placeholder="Injiza username..." autocomplete="off"/>
+    </div>
+
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Injiza password..."/>
+    </div>
+
+    <button class="login-btn" onclick="doLogin()">
+      <svg class="ico ico-lg"><use href="#i-lock"></use></svg>
+      Injira
+    </button>
+
+    <button class="login-btn" onclick="openCreateAccount()" style="margin-top:10px">
+      <svg class="ico ico-lg"><use href="#i-plus"></use></svg>
+      Create Account
+    </button>
+
+    <div id="loginErr" class="login-err"></div>
+
+    </div>
+
+    <div class="small-link">
+      <span>Need help? </span><a href="#" onclick="alert('Contact Admin to reset password.')">Reset Password</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CREATE ACCOUNT SCREEN
+══════════════════════════════════════════ -->
+<div id="createScreen" class="hidden">
+  <div class="login-box" style="max-width:520px">
+    <div class="login-logo" style="margin-bottom:18px">
+      <div class="login-logo-icon">
+        <svg class="ico ico-xxl"><use href="#i-user"></use></svg>
+      </div>
+      <div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:900;margin-bottom:2px;display:block">Create Account</h1>
+        <p style="font-size:11.5px;color:var(--muted)">Admin approval required</p>
+      </div>
+    </div>
+
+    <div class="login-field">
+      <label>Full Name</label>
+      <input type="text" id="c_fullName" placeholder="Full name">
+    </div>
+
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="c_username" placeholder="username">
+    </div>
+
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="c_email" placeholder="example@gmail.com">
+    </div>
+
+    <div class="login-field">
+      <label>Phone</label>
+      <input type="text" id="c_phone" placeholder="+2507...">
+    </div>
+
+    <div class="login-field">
+      <label>Role</label>
+      <select id="c_role">
+        <option value="owner">Owner</option>
+        <option value="veterinarian">Veterinarian</option>
+      </select>
+    </div>
+
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="c_password" placeholder="Create strong password">
+    </div>
+
+    <div class="login-field">
+      <label>Reason (optional)</label>
+      <input type="text" id="c_reason" placeholder="Why do you need access?">
+    </div>
+
+    <button class="login-btn" onclick="submitAccountRequest()">
+      <svg class="ico ico-lg"><use href="#i-clipboard"></use></svg>
+      Submit Request
+    </button>
+
+    <button class="login-btn" onclick="closeCreateAccount()" style="margin-top:10px;border-color:rgba(255,255,255,.15);color:white">
+      <svg class="ico ico-lg"><use href="#i-x"></use></svg>
+      Cancel
+    </button>
+
+    <div id="createMsg" class="login-err"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+<div class="app" id="mainApp" style="display:none">
+
+  <!-- HEADER -->
+  <header class="card header">
+    <div class="logo-block">
+      <div class="logo-icon">
+        <svg class="ico ico-xl"><use href="#i-cow"></use></svg>
+      </div>
+      <div class="logo-text">
+        <h1>LiveTrack</h1>
+        <p>Smart Livestock RFID Monitoring System</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div id="userBadge" class="user-badge"></div>
+
+      <span id="modeBadge" class="mode-badge off">⬤ REGISTER OFF</span>
+
+      <button class="btn btn-accent btn-sm" id="btnRegOn" onclick="toggleMode(1)">
+        <svg class="ico"><use href="#i-check"></use></svg>
+        Register ON
+      </button>
+
+      <button class="btn btn-danger btn-sm" id="btnRegOff" onclick="toggleMode(0)">
+        <svg class="ico"><use href="#i-x"></use></svg>
+        Register OFF
+      </button>
+
+      <button class="btn btn-sm" onclick="reloadAll()">
+        <svg class="ico"><use href="#i-refresh"></use></svg>
+        Refresh
+      </button>
+
+      <button class="btn btn-logout btn-sm" onclick="doLogout()">
+        <svg class="ico"><use href="#i-logout"></use></svg>
+        Sohoka
+      </button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="card tabs-bar" id="tabsBar">
+    <button class="tab active" onclick="switchTab('overview')" id="tab-overview">
+      <svg class="ico"><use href="#i-activity"></use></svg>
+      Overview
+    </button>
+
+    <button class="tab" onclick="switchTab('animals')" id="tab-animals">
+      <svg class="ico"><use href="#i-cow"></use></svg>
+      Inyamaswa
+    </button>
+
+    <button class="tab" onclick="switchTab('register')" id="tab-register">
+      <svg class="ico"><use href="#i-clipboard"></use></svg>
+      Kwandika
+    </button>
+
+    <button class="tab" onclick="switchTab('health')" id="tab-health">
+      <svg class="ico"><use href="#i-heart"></use></svg>
+      Ubuzima
+    </button>
+
+    <button class="tab" onclick="switchTab('logs')" id="tab-logs">
+      <svg class="ico"><use href="#i-log"></use></svg>
+      Scan Logs
+    </button>
+
+    <button class="tab" onclick="switchTab('requests')" id="tab-requests">
+      <svg class="ico"><use href="#i-users"></use></svg>
+      User Requests
+    </button>
+  </div>
+
+  <!-- ══ OVERVIEW ══ -->
+  <div id="page-overview" class="page active main">
+    <div class="stats-row">
+      <div class="card stat-card">
+        <div class="stat-num" id="stat-total" style="color:var(--accent)">—</div>
+        <div class="stat-lbl">Inyamaswa Zose</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-num" id="stat-sick" style="color:var(--danger)">—</div>
+        <div class="stat-lbl">Zirwaye</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-num" id="stat-preg" style="color:var(--warn)">—</div>
+        <div class="stat-lbl">Zifite Inda</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-num" id="stat-scans" style="color:var(--accent2)">—</div>
+        <div class="stat-lbl">Scans Za Uyu Munsi</div>
+      </div>
+    </div>
+
+    <div class="page-grid">
+      <div class="card">
+        <div class="section-head">
+          <h2><svg class="ico"><use href="#i-cow"></use></svg> Inyamaswa Za Vuba</h2>
+          <button class="btn btn-sm" onclick="switchTab('animals')">
+            <svg class="ico"><use href="#i-eye"></use></svg>
+            Reba Zose
+          </button>
+        </div>
+
+        <div class="table-wrap" style="padding:0 4px 8px">
+          <table>
+            <thead><tr><th>Tag</th><th>Izina</th><th>Ubwoko</th><th>Imiterere</th></tr></thead>
+            <tbody id="ov-animals"><tr class="empty-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2><svg class="ico"><use href="#i-log"></use></svg> Scans Za Vuba</h2>
+          <button class="btn btn-sm" onclick="switchTab('logs')">
+            <svg class="ico"><use href="#i-eye"></use></svg>
+            Reba Zose
+          </button>
+        </div>
+
+        <div class="table-wrap" style="padding:0 4px 8px">
+          <table>
+            <thead><tr><th>Tag</th><th>Izina</th><th>Imiterere</th><th>Igihe</th></tr></thead>
+            <tbody id="ov-logs"><tr class="empty-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ANIMALS ══ -->
+  <div id="page-animals" class="page main">
+    <div class="card">
+      <div class="section-head">
+        <h2><svg class="ico"><use href="#i-cow"></use></svg> Urutonde rw'Inyamaswa</h2>
+
+        <div class="filter-row">
+          <input type="text" id="filterText" placeholder="Shakisha tag cyangwa izina…" oninput="renderAnimalsFiltered()" style="max-width:220px"/>
+          <button class="btn btn-sm" onclick="loadAnimals()">
+            <svg class="ico"><use href="#i-refresh"></use></svg>
+            Reload
+          </button>
+
+          <button class="btn btn-accent btn-sm" id="btn-new-animal" onclick="switchTab('register');resetForm()">
+            <svg class="ico"><use href="#i-plus"></use></svg>
+            Inyamaswa Nshya
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="padding:0 4px 8px">
+        <table id="animalsMainTable">
+          <thead>
+            <tr>
+              <th>Tag ID</th><th>Izina</th><th>Ubwoko / Igitsina</th><th>Breed</th>
+              <th>Imiterere</th>
+              <th id="th-owner" class="owner-col">Nyir'Umuturage</th>
+              <th>Ibikorwa</th>
+            </tr>
+          </thead>
+          <tbody id="animalsTable">
+            <tr class="empty-row"><td colspan="7">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REGISTER ══ -->
+  <div id="page-register" class="page main">
+    <div class="card" id="registerDeniedCard" style="display:none">
+      <div class="access-denied">
+        <div class="icon"><svg class="ico ico-xxl"><use href="#i-lock"></use></svg></div>
+        <h3>Ntabwo Ufite Uburenganzira</h3>
+        <p>Nta burenganzira bwo kwandika cyangwa guhindura inyamaswa. Baza umuyobozi wawe.</p>
+      </div>
+    </div>
+
+    <div id="registerAllowedContent">
+      <div class="page-grid">
+        <div class="card">
+          <div class="section-head"><h2><svg class="ico"><use href="#i-clipboard"></use></svg> Kwandika / Guhindura Inyamaswa</h2></div>
+          <div class="section-body">
+
+            <div id="editBanner" class="edit-banner">
+              <svg class="ico"><use href="#i-edit"></use></svg>
+              EDIT MODE
+              <button class="btn btn-sm" onclick="resetForm()" style="margin-left:auto">
+                <svg class="ico"><use href="#i-x"></use></svg>
+                Hagarika
+              </button>
+            </div>
+
+            <div class="form-row field">
+              <div style="flex:1">
+                <label>RFID Tag ID</label>
+                <input type="text" id="tagId" placeholder="Scan cyangwa injiza…"/>
+              </div>
+              <button class="btn btn-accent btn-sm" onclick="fetchPendingTag()" style="margin-bottom:0">
+                <svg class="ico"><use href="#i-refresh"></use></svg>
+                Fetch
+              </button>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="field"><label>Izina</label><input type="text" id="name" placeholder="urugero: Bella"/></div>
+
+              <div class="field">
+                <label>Ubwoko (Type)</label>
+                <select id="animalType" onchange="onTypeChange()">
+                  <option value="">-- Hitamo Ubwoko --</option>
+                  <option value="Inka (Cow)">Inka (Cow)</option>
+                  <option value="Ihene (Goat)">Ihene (Goat)</option>
+                  <option value="Intama (Sheep)">Intama (Sheep)</option>
+                  <option value="Ingurube (Pig)">Ingurube (Pig)</option>
+                  <option value="Inkoko (Chicken)">Inkoko (Chicken)</option>
+                  <option value="Ifarasi (Horse)">Ifarasi (Horse)</option>
+                  <option value="Inzovu (Elephant)">Inzovu (Elephant)</option>
+                  <option value="Imbwebwe (Dog)">Imbwa (Dog)</option>
+                  <option value="Urukwavu (Rabbit)">Urukwavu (Rabbit)</option>
+                  <option value="imbata (duck)">Ibindi (Other)</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Igitsina (Sex)</label>
+                <select id="sex" onchange="applySmartRules()">
+                  <option value="">-- Hitamo --</option>
+                  <option value="Male">Gabo (Male)</option>
+                  <option value="Female">Gore (Female)</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Race (Breed)</label>
+                <select id="breed">
+                  <option value="">-- Banza uhitemo ubwoko --</option>
+                </select>
+              </div>
+
+              <div class="field"><label>Itariki y'Amavuko</label><input type="date" id="birthdate"/></div>
+              <div class="field"><label>Izina ry'Nyir'Umuturage</label><input type="text" id="ownerName"/></div>
+
+              <div class="field col-span-2">
+                <label>Telefoni ya Nyir'Umuturage</label>
+                <input type="text" id="ownerContact" placeholder="+250 7XX XXX XXX"/>
+              </div>
+
+              <div class="field col-span-2">
+                <label>Imiterere Ihariye</label>
+                <div class="checkbox-row">
+                  <label class="checkbox-label"><input type="checkbox" id="isPregnant" onchange="applySmartRules()"/> Ifite Inda (Pregnant)</label>
+                  <label class="checkbox-label"><input type="checkbox" id="isSick"/> Irwaye (Sick)</label>
+                </div>
+                <div id="smartHint" style="font-size:11.5px;color:var(--muted);margin-top:8px;min-height:16px"></div>
+              </div>
+            </div>
+
+            <button class="btn btn-accent btn-full" onclick="saveOrUpdateAnimal()" style="margin-top:6px">
+              <svg class="ico"><use href="#i-check"></use></svg>
+              Bika / Vugurura
+            </button>
+
+            <button class="btn btn-full" onclick="resetForm()" style="margin-top:8px">
+              <svg class="ico"><use href="#i-trash"></use></svg>
+              Siba Byose
+            </button>
+
+            <div id="registerMsg" class="msg"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-head"><h2><svg class="ico"><use href="#i-eye"></use></svg> Shakisha Vuba</h2></div>
+          <div class="section-body">
+            <div class="form-row" style="margin-bottom:14px">
+              <input type="text" id="searchTag" placeholder="Injiza Tag ID…" style="flex:1"/>
+              <button class="btn btn-accent btn-sm" onclick="searchAnimal()">
+                <svg class="ico"><use href="#i-eye"></use></svg>
+                Shakisha
+              </button>
+            </div>
+            <div id="animalResult" class="result-box">
+              <p style="color:var(--muted);font-size:13px">Shakisha tag reba amakuru y'inyamaswa.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HEALTH ══ -->
+  <div id="page-health" class="page main">
+    <div class="page-grid">
+      <div class="card">
+        <div class="section-head"><h2><svg class="ico"><use href="#i-heart"></use></svg> Ongeraho Amakuru y'Ubuzima</h2></div>
+        <div class="section-body">
+
+          <div id="healthAddDenied" class="role-banner vet" style="display:none">
+            <svg class="ico"><use href="#i-alert"></use></svg>
+            ℹ️ Nta burenganzira bwo kongeraho amakuru y'ubuzima.
+          </div>
+
+          <div id="healthAddForm">
+            <div class="field">
+              <label>Tag ID y'Inyamaswa</label>
+              <div class="form-row">
+                <input type="text" id="healthTagSearch" placeholder="Injiza tag…" style="flex:1"/>
+                <button class="btn btn-accent btn-sm" onclick="loadHealthHistory()">
+                  <svg class="ico"><use href="#i-eye"></use></svg>
+                  Shakisha
+                </button>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="field">
+                <label>Ubwoko bw'Ikibazo</label>
+                <select id="healthType">
+                  <option value="">-- Hitamo --</option>
+                  <option value="vaccination">Inkingo (Vaccination)</option>
+                  <option value="pregnancy">Inda (Pregnancy)</option>
+                  <option value="disease">Indwara (Disease)</option>
+                </select>
+              </div>
+              <div class="field"><label>Itariki yo Gutangira</label><input type="date" id="startDate"/></div>
+              <div class="field"><label>Itariki yo Kurangira</label><input type="date" id="endDate"/></div>
+              <div class="field"><label>Igihe Gikurikira</label><input type="date" id="nextEventDate"/></div>
+              <div class="field"><label>Izina ry'Umuganga</label><input type="text" id="vetName"/></div>
+              <div class="field"><label>Telefoni y'Umuganga</label><input type="text" id="vetContact" placeholder="+250…"/></div>
+              <div class="field col-span-2"><label>Ibyabonwe (Notes)</label><textarea id="notes" placeholder="Andika ibyabonwe…"></textarea></div>
+            </div>
+
+            <button class="btn btn-accent btn-full" id="btnAddHealth" onclick="addHealthRecord()">
+              <svg class="ico"><use href="#i-plus"></use></svg>
+              Ongeraho
+            </button>
+
+            <div id="healthMsg" class="msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2><svg class="ico"><use href="#i-log"></use></svg> Amateka y'Ubuzima</h2>
+          <button class="btn btn-sm" onclick="loadHealthHistory()">
+            <svg class="ico"><use href="#i-refresh"></use></svg>
+            Vugurura
+          </button>
+        </div>
+
+        <div class="section-body" style="padding-top:0">
+          <div id="healthAnimalInfo" style="padding:12px 0;font-size:13px;color:var(--muted)">Shakisha tag reba amateka.</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Ubwoko</th><th>Itariki</th><th>Igihe Gikurikira</th><th>Umuganga</th><th id="th-del-h"></th></tr></thead>
+              <tbody id="healthTable"><tr class="empty-row"><td colspan="6">Nta makuru.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCAN LOGS ══ -->
+  <div id="page-logs" class="page main">
+    <div class="card" id="logsDeniedCard" style="display:none">
+      <div class="access-denied">
+        <div class="icon"><svg class="ico ico-xxl"><use href="#i-lock"></use></svg></div>
+        <h3>Ntabwo Ufite Uburenganzira</h3>
+        <p>Ntabwo wemerewe kureba scan logs.</p>
+      </div>
+    </div>
+
+    <div id="logsAllowedContent">
+      <div class="card">
+        <div class="section-head">
+          <h2><svg class="ico"><use href="#i-log"></use></svg> Scan Logs</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="loadScanLogs()">
+              <svg class="ico"><use href="#i-refresh"></use></svg>
+              Vugurura
+            </button>
+            <button class="btn btn-danger btn-sm" id="btnClearLogs" onclick="showClearLogsDlg()">
+              <svg class="ico"><use href="#i-trash"></use></svg>
+              Siba Byose
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="padding:0 4px 8px">
+          <table>
+            <thead><tr><th>#</th><th>Tag ID</th><th>Izina</th><th>Ubwoko</th><th>Imiterere</th><th>Igihe</th><th>Ibikorwa</th></tr></thead>
+            <tbody id="scanTable"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ USER REQUESTS (ADMIN) ══ -->
+  <div id="page-requests" class="page main">
+    <div class="card">
+      <div class="section-head">
+        <h2><svg class="ico"><use href="#i-users"></use></svg> Pending User Requests</h2>
+        <button class="btn btn-sm" onclick="loadUserRequests()">
+          <svg class="ico"><use href="#i-refresh"></use></svg>
+          Reload
+        </button>
+      </div>
+
+      <div class="table-wrap" style="padding:0 4px 8px">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Reason</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="reqTable">
+            <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- CONFIRM DIALOG -->
+<div class="overlay" id="dlgOverlay">
+  <div class="dialog">
+    <h3 id="dlgTitle">Emeza</h3>
+    <p  id="dlgMsg">Uremeza gukora ibi?</p>
+    <div class="dialog-actions">
+      <button class="btn btn-danger btn-full" id="dlgConfirm">Emeza</button>
+      <button class="btn btn-full" onclick="closeDlg()">Hagarika</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════ */
+const BASE = "http://localhost/livestock/livestocks";///////////////////////////////////////////////////////////////////
+let currentHealthTag = null;
+
+/* ══════════════════════════════════════════
+   ROLE PERMISSIONS
+══════════════════════════════════════════ */
+const ROLE_PERMISSIONS = {
+  admin: {
+    tabs:        ['overview','animals','register','health','logs','requests'],
+    canDelete:   true,
+    canRegister: true,
+    canAddHealth:true,
+    seeOwner:    true,
+    seeRegMode:  true,
+    canClearLogs:true,
+  },
+  veterinarian: {
+    tabs:        ['overview','animals','health'],
+    canDelete:   false,
+    canRegister: false,
+    canAddHealth:true,
+    seeOwner:    false,
+    seeRegMode:  false,
+    canClearLogs:false,
+  },
+  owner: {
+    tabs:        ['overview','animals','register','logs'],
+    canDelete:   true,
+    canRegister: true,
+    canAddHealth:false,
+    seeOwner:    true,
+    seeRegMode:  true,
+    canClearLogs:true,
+  },
+};
+
+let currentUser = null;
+function getPerms(){ return currentUser ? ROLE_PERMISSIONS[currentUser.role] : null; }
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
+function esc(v){
+  if(v==null) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function setMsg(el, t, type){ el.textContent=t; el.className='msg '+type; }
+function toast(msg, type='ok'){
+  const icon = {ok:'✓',err:'✕',info:'ℹ'}[type]||'·';
+  const el = document.createElement('div');
+  el.className = 'toast '+type;
+  el.innerHTML = `<span>${icon}</span>${msg}`;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(), 3400);
+}
+function showDlg(title, msg, cb){
+  document.getElementById('dlgTitle').textContent = title;
+  document.getElementById('dlgMsg').textContent   = msg;
+  document.getElementById('dlgOverlay').classList.add('show');
+  const old = document.getElementById('dlgConfirm');
+  const fresh = old.cloneNode(true);
+  old.replaceWith(fresh);
+  fresh.addEventListener('click',()=>{ closeDlg(); cb(); },{once:true});
+}
+function closeDlg(){ document.getElementById('dlgOverlay').classList.remove('show'); }
+
+/* ══════════════════════════════════════════
+   LOGIN (DB AUTH)
+══════════════════════════════════════════ */
+async function doLogin(){
+  const u = document.getElementById('loginUsername').value.trim();
+  const p = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+
+  if(!u || !p){
+    errEl.textContent = "⚠ Injiza username na password.";
+    return;
+  }
+
+  try{
+    const res = await fetch(`${BASE}/login_api.php`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ username:u, password:p })
+    });
+
+  const text = await res.text();
+console.log("SERVER RESPONSE:", text);
+
+let data;
+try {
+  data = JSON.parse(text);
+} catch (e) {
+  errEl.textContent = "Server ntabwo yagaruye JSON. Reba Console (F12)";
+  return;
+}
+
+    if(!data.success){
+      errEl.textContent = "✕ " + data.message;
+      return;
+    }
+
+    currentUser = {
+      id: data.user.id,
+      username: data.user.username,
+      role: data.user.role,
+      fullName: data.user.fullName,
+      nameRw: data.user.fullName
+    };
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').style.display = 'flex';
+
+    applyRoleUI();
+    reloadAll();
+    toast("Ikaze " + currentUser.fullName, "ok");
+
+ } catch(e) {
+    console.error(e); // Ibi bizatuma ubona error nyayo muri Console (F12)
+    errEl.textContent = "✕ Ikibazo cyabaye: " + e.message;
+}
+
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden'))
+    doLogin();
+});
+
+function doLogout(){
+  showDlg('Sohoka', 'Urashaka gusohoka mu konte yawe?', () => {
+    currentUser = null;
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginErr').textContent = '';
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('mainApp').style.display = 'none';
+    toast('Wasohowe neza.', 'info');
+  });
+}
+
+/* ══════════════════════════════════════════
+   CREATE ACCOUNT REQUEST
+══════════════════════════════════════════ */
+function openCreateAccount(){
+  document.getElementById("createScreen").classList.remove("hidden");
+  document.getElementById("createMsg").innerText="";
+}
+function closeCreateAccount(){
+  document.getElementById("createScreen").classList.add("hidden");
+  document.getElementById("createMsg").innerText="";
+}
+
+async function submitAccountRequest(){
+  const msg = document.getElementById("createMsg");
+
+  const payload = {
+    fullName: document.getElementById("c_fullName").value.trim(),
+    username: document.getElementById("c_username").value.trim(),
+    email: document.getElementById("c_email").value.trim(),
+    phone: document.getElementById("c_phone").value.trim(),
+    role: document.getElementById("c_role").value,
+    password: document.getElementById("c_password").value,
+    reason: document.getElementById("c_reason").value.trim()
+  };
+
+  if(!payload.fullName || !payload.username || !payload.email || !payload.phone || !payload.password){
+    msg.innerText = "⚠ Fill all required fields.";
+    msg.style.color = "var(--danger)";
+    return;
+  }
+
+  try{
+    const res = await fetch(`${BASE}/register_request.php`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      msg.style.color="var(--accent)";
+      msg.innerText = "✅ Request submitted. Wait for admin approval.";
+      toast("Request sent", "ok");
+      setTimeout(()=>closeCreateAccount(), 1500);
+    } else {
+      msg.style.color="var(--danger)";
+      msg.innerText = "❌ " + data.message;
+    }
+
+  }catch(e){
+    msg.style.color="var(--danger)";
+    msg.innerText = "❌ register_request.php error";
+  }
+}
+
+/* ══════════════════════════════════════════
+   APPLY ROLE UI
+══════════════════════════════════════════ */
+function applyRoleUI(){
+  if(!currentUser) return;
+  const perms = getPerms();
+  const role  = currentUser.role;
+
+  const badge = document.getElementById('userBadge');
+  const roleLabels = {admin:'Admin',veterinarian:'Veterinarian',owner:'Owner'};
+  const rolePills  = {admin:'pill-admin',veterinarian:'pill-vet',owner:'pill-owner'};
+
+  badge.className  = `user-badge role-${role}`;
+  badge.innerHTML  = `<div class="role-dot"></div><b>${esc(currentUser.fullName)}</b>
+    <span class="pill ${rolePills[role]}" style="margin-left:4px">${roleLabels[role]||role}</span>`;
+
+  ['btnRegOn','btnRegOff','modeBadge'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = perms.seeRegMode ? '' : 'none';
+  });
+
+  ['overview','animals','register','health','logs','requests'].forEach(t => {
+    const tab = document.getElementById('tab-'+t);
+    if(tab) tab.classList.toggle('hidden', !perms.tabs.includes(t));
+  });
+
+  const regDenied  = document.getElementById('registerDeniedCard');
+  const regAllowed = document.getElementById('registerAllowedContent');
+  if(perms.canRegister){ regDenied.style.display='none'; regAllowed.style.display=''; }
+  else                 { regDenied.style.display='';     regAllowed.style.display='none'; }
+
+  const btnNew = document.getElementById('btn-new-animal');
+  if(btnNew) btnNew.style.display = perms.canRegister ? '' : 'none';
+
+  document.querySelectorAll('.owner-col').forEach(el => {
+    el.style.display = perms.seeOwner ? '' : 'none';
+  });
+
+  const thOwner = document.getElementById('th-owner');
+  if(thOwner) thOwner.style.display = perms.seeOwner ? '' : 'none';
+
+  const thDelH = document.getElementById('th-del-h');
+  if(thDelH) thDelH.textContent = perms.canDelete ? 'Siba' : '';
+
+  const logsDenied  = document.getElementById('logsDeniedCard');
+  const logsAllowed = document.getElementById('logsAllowedContent');
+  if(perms.tabs.includes('logs')){
+    logsDenied.style.display='none';
+    logsAllowed.style.display='';
+  } else {
+    logsDenied.style.display='';
+    logsAllowed.style.display='none';
+  }
+
+  const btnClear = document.getElementById('btnClearLogs');
+  if(btnClear) btnClear.style.display = perms.canClearLogs ? '' : 'none';
+
+  switchTab(perms.tabs[0] || 'overview');
+}
+
+/* ══════════════════════════════════════════
+   TABS
+══════════════════════════════════════════ */
+function switchTab(name){
+  const perms = getPerms();
+  if(perms && !perms.tabs.includes(name)) name = perms.tabs[0]||'overview';
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+  const pg  = document.getElementById('page-'+name);
+  const tab = document.getElementById('tab-'+name);
+
+  if(pg)  pg.classList.add('active');
+  if(tab) tab.classList.add('active');
+
+  if(name==='overview'){ loadAnimals(); loadScanLogs(); }
+  if(name==='animals')  loadAnimals();
+  if(name==='logs')     loadScanLogs();
+  if(name==='requests') loadUserRequests();
+}
+
+/* ══════════════════════════════════════════
+   TYPE → BREED
+══════════════════════════════════════════ */
+const BREEDS = {
+  'Inka (Cow)':        ['Friesian','Jersey','Ankole / Inyambo','Holstein','Ayrshire','Guernsey','Brown Swiss','Crossbreed'],
+  'Ihene (Goat)':      ['Saanen','Toggenburg','Alpine','Boer','Nubian','Local','Crossbreed'],
+  'Intama (Sheep)':    ['Dorper','Merino','Suffolk','Awassi','Local','Crossbreed'],
+  'Ingurube (Pig)':    ['Large White','Landrace','Duroc','Hampshire','Local','Crossbreed'],
+  'Inkoko (Chicken)':  ['Broiler','Layer','Kuroiler','Sasso','Indigenous / Local'],
+  'Ifarasi (Horse)':   ['Thoroughbred','Arabian','Warmblood','Local'],
+  'Urukwavu (Rabbit)': ['New Zealand White','Californian','Flemish Giant','Local'],
+  'Imbwebwe (Dog)':    ['German Shepherd','Labrador','Rottweiler','Local / Mixed'],
+  'Inzige (Locust)':   ['Other'],
+  'Inzovu (Elephant)': ['African Bush','African Forest'],
+};
+
+function onTypeChange(){
+  const type  = document.getElementById('animalType').value;
+  const bSel  = document.getElementById('breed');
+  bSel.innerHTML = '<option value="">Hitamo Race</option>';
+  const list  = BREEDS[type] || [];
+  list.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b;
+    bSel.appendChild(o);
+  });
+}
+
+/* ══════════════════════════════════════════
+   MODE
+══════════════════════════════════════════ */
+async function api(url, opts={}){
+  const res = await fetch(url,{
+    ...opts,
+    headers:{'Content-Type':'application/json',...(opts.headers||{})}
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+async function checkMode(){
+  if(!getPerms()?.seeRegMode) return;
+  try{
+    const d=await api(`${BASE}/mode.php`);
+    const b=document.getElementById('modeBadge');
+    if(d.registerMode===1){b.textContent='⬤ REGISTER ON'; b.className='mode-badge on';}
+    else{b.textContent='⬤ REGISTER OFF'; b.className='mode-badge off';}
+  }catch(e){}
+}
+async function toggleMode(m){
+  try{
+    await api(`${BASE}/mode.php`,{method:'POST',body:JSON.stringify({registerMode:m})});
+    checkMode();
+    toast(m?'Register mode ON':'Register mode OFF', m?'ok':'info');
+  }catch(e){ toast('mode.php error','err'); }
+}
+
+async function fetchPendingTag(){
+  try{
+    const d=await api(`${BASE}/register.php?action=fetch`);
+    if(d.success&&d.tagId){document.getElementById('tagId').value=d.tagId; toast('Tag: '+d.tagId,'info');}
+    else toast('Nta tag yo gutegereza','info');
+  }catch(e){ toast('register.php error','err'); }
+}
+
+/* ══════════════════════════════════════════
+   SMART RULES
+══════════════════════════════════════════ */
+function applySmartRules(){
+  const sex  = document.getElementById('sex').value;
+  const preg = document.getElementById('isPregnant');
+  const hint = document.getElementById('smartHint');
+  if(!hint||!preg) return;
+
+  if(sex==='Male'){
+    preg.checked=false;
+    preg.disabled=true;
+    hint.textContent='⚠ Gabo ntishobora kugira inda.';
+  } else {
+    preg.disabled=false;
+    hint.textContent='';
+  }
+}
+
+function resetForm(){
+  ['tagId','name','ownerName','ownerContact'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.value='';
+  });
+  document.getElementById('animalType').value='';
+  document.getElementById('breed').innerHTML='<option value="">-- Banza uhitemo ubwoko --</option>';
+  document.getElementById('sex').value='';
+  document.getElementById('birthdate').value='';
+  document.getElementById('isPregnant').checked=false;
+  document.getElementById('isSick').checked=false;
+  document.getElementById('registerMsg').textContent='';
+  document.getElementById('editBanner').classList.remove('show');
+  applySmartRules();
+}
+
+/* ══════════════════════════════════════════
+   SAVE ANIMAL
+══════════════════════════════════════════ */
+async function saveOrUpdateAnimal(){
+  const msgEl=document.getElementById('registerMsg');
+  msgEl.className='msg'; msgEl.textContent='';
+  applySmartRules();
+
+  const p={
+    tagId:       document.getElementById('tagId').value.trim(),
+    name:        document.getElementById('name').value.trim(),
+    animalType:  document.getElementById('animalType').value,
+    sex:         document.getElementById('sex').value,
+    breed:       document.getElementById('breed').value,
+    birthdate:   document.getElementById('birthdate').value,
+    isPregnant:  document.getElementById('isPregnant').checked?1:0,
+    isSick:      document.getElementById('isSick').checked?1:0,
+    ownerContact:document.getElementById('ownerContact').value.trim(),
+    ownerName:   document.getElementById('ownerName').value.trim()
+  };
+
+  if(!p.tagId||!p.name||!p.animalType||!p.sex||!p.ownerContact){
+    setMsg(msgEl,'⚠ Byasabwa: Tag, Izina, Ubwoko, Igitsina, Telefoni','err'); 
+    return;
+  }
+
+  try{
+    const d=await api(`${BASE}/save_animal.php`,{method:'POST',body:JSON.stringify(p)});
+    if(d.success){
+      setMsg(msgEl,'✓ Byabitswe neza!','ok');
+      toast('Byabitswe: '+p.tagId,'ok');
+      loadAnimals();
+    } else setMsg(msgEl,'✕ '+(d.message||'Kubika byahagaritse'),'err');
+  }catch(e){ setMsg(msgEl,'✕ save_animal.php error','err'); }
+}
+
+/* ══════════════════════════════════════════
+   SEARCH ANIMAL
+══════════════════════════════════════════ */
+async function searchAnimal(){
+  const tag=document.getElementById('searchTag').value.trim();
+  const box=document.getElementById('animalResult');
+  if(!tag){box.innerHTML=`<p style="color:var(--muted);font-size:13px">Injiza tag ID.</p>`;return;}
+  box.innerHTML=`<p style="color:var(--muted);font-size:13px">Loading…</p>`;
+  const perms=getPerms();
+
+  try{
+    const d=await api(`${BASE}/animal.php?tagId=${encodeURIComponent(tag)}`);
+    if(!d.success){
+      box.innerHTML=`<p style="color:var(--danger);font-size:13px">✕ ${esc(d.message)}</p>`;
+      return;
+    }
+
+    const preg=d.isPregnant==1?`<span class="pill pill-preg">INDA</span>`:'';
+    const sick=d.isSick==1?`<span class="pill pill-sick">IRWAYE</span>`:`<span class="pill pill-ok">NZIZA</span>`;
+
+    const ownerHTML = perms?.seeOwner
+      ? `<div class="item"><span>NYIRAYO</span>${esc(d.ownerName??'—')}</div>
+         <div class="item"><span>TELEFONI</span>${esc(d.ownerContact)}</div>`
+      : `<div class="item" style="grid-column:1/-1"><span>NYIRAYO</span><em style="color:var(--muted);font-size:11px">Nta burenganzira bwo kureba ibi makuru</em></div>`;
+
+    box.innerHTML=`
+      <div class="animal-card">
+        <h3>${esc(d.name)} ${sick} ${preg}</h3>
+        <div class="animal-meta">
+          <div class="item"><span>TAG</span><b class="tag-mono">${esc(d.tagId)}</b></div>
+          <div class="item"><span>UBWOKO</span>${esc(d.animalType)}</div>
+          <div class="item"><span>IGITSINA</span>${esc(d.sex)}</div>
+          <div class="item"><span>RACE</span>${esc(d.breed??'—')}</div>
+          ${ownerHTML}
+          <div class="item" style="grid-column:1/-1">
+            <span>UBUZIMA BWA VUBA</span>
+            ${d.latestHealth?esc(d.latestHealth.type)+' · '+(d.latestHealth.startDate??''):'Nta makuru y\'ubuzima'}
+          </div>
+        </div>
+      </div>`;
+  }catch(e){
+    box.innerHTML=`<p style="color:var(--danger);font-size:13px">✕ animal.php error</p>`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   LOAD ANIMALS
+══════════════════════════════════════════ */
+function setStats(animals){
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('stat-total',animals.length);
+  set('stat-sick', animals.filter(a=>String(a.isSick)==='1').length);
+  set('stat-preg', animals.filter(a=>String(a.isPregnant)==='1').length);
+}
+
+async function loadAnimals(){
+  const tbody=document.getElementById('animalsTable');
+  if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Loading…</td></tr>`;
+
+  try{
+    const data=await api(`${BASE}/animals_list.php`);
+    if(!data.success){
+      if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">❌ ${esc(data.message||'Byahagaritse')}</td></tr>`;
+      setStats([]);
+      return;
+    }
+    animalsCache=data.animals||[];
+    setStats(animalsCache);
+    renderAnimalsFiltered();
+    renderOvAnimals();
+  }catch(e){
+    if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">❌ animals_list.php error</td></tr>`;
+    setStats([]);
+    toast('animals_list.php error','err');
+  }
+}
+
+function renderOvAnimals(){
+  const tbody=document.getElementById('ov-animals');
+  if(!tbody) return;
+  if(!animalsCache.length){
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="4">Nta nyamaswa zanditswe.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML=animalsCache.slice(0,6).map(a=>`
+    <tr>
+      <td><span class="tag-mono">${esc(a.tagId)}</span></td>
+      <td><b>${esc(a.name)}</b></td>
+      <td>${esc(a.animalType)}</td>
+      <td>
+        ${a.isSick==1?'<span class="pill pill-sick">IRWAYE</span> ':'<span class="pill pill-ok">NZIZA</span> '}
+        ${a.isPregnant==1?'<span class="pill pill-preg">INDA</span>':''}
+      </td>
+    </tr>`).join('');
+}
+
+function renderAnimalsFiltered(){
+  const tbody=document.getElementById('animalsTable');
+  if(!tbody) return;
+
+  const perms=getPerms();
+  const filter=(document.getElementById('filterText')?.value||'').toLowerCase().trim();
+
+  const list=filter?animalsCache.filter(a=>
+    (a.tagId&&a.tagId.toLowerCase().includes(filter))||(a.name&&a.name.toLowerCase().includes(filter))
+  ):animalsCache;
+
+  if(!list.length){
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">${filter?'Nta bihuye.':'Nta nyamaswa zanditswe.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML=list.map(a=>`
+    <tr>
+      <td><span class="tag-mono">${esc(a.tagId)}</span></td>
+      <td><b>${esc(a.name)}</b></td>
+      <td>${esc(a.animalType)} <span style="color:var(--muted)">/ ${esc(a.sex)}</span></td>
+      <td>${esc(a.breed??'—')}</td>
+      <td>
+        ${a.isSick==1?'<span class="pill pill-sick">IRWAYE</span> ':'<span class="pill pill-ok">NZIZA</span> '}
+        ${a.isPregnant==1?'<span class="pill pill-preg">INDA</span>':''}
+      </td>
+      ${perms?.seeOwner ? `<td class="owner-col">${esc(a.ownerName??'—')}<br><span style="color:var(--muted);font-size:11.5px">${esc(a.ownerContact)}</span></td>` : `<td class="owner-col" style="display:none"></td>`}
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-sm" data-action="view" data-tag="${esc(a.tagId)}"><svg class="ico"><use href="#i-eye"></use></svg>View</button>
+          ${perms?.canRegister ? `<button class="btn btn-warn btn-sm" data-action="edit" data-tag="${esc(a.tagId)}"><svg class="ico"><use href="#i-edit"></use></svg>Edit</button>` : ''}
+          ${perms?.canDelete ? `<button class="btn btn-danger btn-sm" data-action="del" data-tag="${esc(a.tagId)}"><svg class="ico"><use href="#i-trash"></use></svg>Delete</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ══════════════════════════════════════════
+   EVENT DELEGATION
+══════════════════════════════════════════ */
+document.addEventListener('click', e => {
+  const btn=e.target.closest('[data-action]');
+  if(!btn) return;
+  const a   = btn.dataset.action;
+  const tag = btn.dataset.tag;
+  const hid = parseInt(btn.dataset.hid||'0',10);
+  const lid = parseInt(btn.dataset.lid||'0',10);
+
+  if(a==='view') quickView(tag);
+  if(a==='edit') editAnimal(tag);
+  if(a==='del')  showDlg('Siba Inyamaswa',`Siba "${tag}"?`,()=>deleteAnimal(tag));
+  if(a==='del-h') showDlg('Siba Ikibazo','Siba iki cyigisho?',()=>deleteHealth(hid));
+  if(a==='del-l') showDlg('Siba Log','Siba iyi log?',()=>deleteScanLog(lid));
+});
+
+async function quickView(tag){
+  document.getElementById('searchTag').value=tag;
+  switchTab('register');
+  await searchAnimal();
+}
+
+async function editAnimal(tag){
+  if(!getPerms()?.canRegister){ toast('Ntabwo ufite uburenganzira','err'); return; }
+  try{
+    const d=await api(`${BASE}/animal.php?tagId=${encodeURIComponent(tag)}`);
+    if(!d.success){toast('Inyamaswa ntiyabonetse','err');return;}
+
+    switchTab('register');
+    document.getElementById('tagId').value        = d.tagId;
+    document.getElementById('name').value         = d.name??'';
+    document.getElementById('sex').value          = d.sex??'';
+    document.getElementById('birthdate').value    = d.birthdate??'';
+    document.getElementById('ownerName').value    = d.ownerName??'';
+    document.getElementById('ownerContact').value = d.ownerContact??'';
+    document.getElementById('isPregnant').checked = d.isPregnant==1;
+    document.getElementById('isSick').checked     = d.isSick==1;
+
+    document.getElementById('animalType').value = d.animalType??'';
+    onTypeChange();
+    document.getElementById('breed').value = d.breed??'';
+
+    document.getElementById('editBanner').classList.add('show');
+    applySmartRules();
+    toast('Edit mode: '+tag,'info');
+  }catch(e){ toast('Server error','err'); }
+}
+
+async function deleteAnimal(tag){
+  if(!getPerms()?.canDelete){ toast('Ntabwo ufite uburenganzira','err'); return; }
+  try{
+    const d=await api(`${BASE}/delete_animal.php`,{method:'POST',body:JSON.stringify({tagId:tag})});
+    if(d.success){toast('Yasibwe: '+tag,'ok'); loadAnimals();}
+    else toast('Gusiba byahagaritse: '+(d.message||'Error'),'err');
+  }catch(e){ toast('delete_animal.php error','err'); }
+}
+
+/* ══════════════════════════════════════════
+   HEALTH
+══════════════════════════════════════════ */
+async function loadHealthHistory(){
+  const tag  = document.getElementById('healthTagSearch').value.trim();
+  const info = document.getElementById('healthAnimalInfo');
+  const tbody= document.getElementById('healthTable');
+
+  if(!tag){toast('Injiza Tag ID','info');return;}
+
+  currentHealthTag=tag;
+  info.textContent='Loading…';
+  tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Loading…</td></tr>`;
+  const perms=getPerms();
+
+  try{
+    const d=await api(`${BASE}/health.php?tagId=${encodeURIComponent(tag)}`);
+    if(!d.success){
+      info.textContent='✕ '+(d.message||'Ntiyabonetse');
+      tbody.innerHTML=`<tr class="empty-row"><td colspan="6">${esc(d.message||'Error')}</td></tr>`;
+      return;
+    }
+
+    info.innerHTML=`<b>${esc(d.animalName)}</b> · Records: ${d.totalRecords}`;
+
+    if(!d.records.length){
+      tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Nta makuru y'ubuzima.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML=d.records.map(r=>`
+      <tr>
+        <td class="tag-mono">${r.id}</td>
+        <td><span class="pill">${esc(r.type)}</span></td>
+        <td>${esc(r.startDate??'—')}</td>
+        <td>${esc(r.nextEventDate??'—')}</td>
+        <td>${esc(r.vetName??'—')}</td>
+        <td>${perms?.canDelete?`<button class="btn btn-danger btn-sm" data-action="del-h" data-hid="${r.id}"><svg class="ico"><use href="#i-trash"></use></svg></button>`:''}</td>
+      </tr>`).join('');
+  }catch(e){
+    info.textContent='health.php error';
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Server error.</td></tr>`;
+  }
+}
+
+async function addHealthRecord(){
+  const msgEl=document.getElementById('healthMsg');
+  const tag=document.getElementById('healthTagSearch').value.trim();
+  if(!tag){setMsg(msgEl,'⚠ Injiza Tag ID','err');return;}
+
+  const p={
+    tagId:tag,
+    type:         document.getElementById('healthType').value,
+    startDate:    document.getElementById('startDate').value,
+    endDate:      document.getElementById('endDate').value,
+    nextEventDate:document.getElementById('nextEventDate').value,
+    notes:        document.getElementById('notes').value,
+    vetName:      document.getElementById('vetName').value,
+    vetContact:   document.getElementById('vetContact').value,
+  };
+
+  if(!p.type){setMsg(msgEl,'⚠ Hitamo type','err');return;}
+
+  try{
+    const d=await api(`${BASE}/health.php`,{method:'POST',body:JSON.stringify(p)});
+    if(d.success){
+      setMsg(msgEl,'✓ Byongewe neza!','ok');
+      toast('Health record added','ok');
+      loadHealthHistory();
+      loadAnimals();
+    } else setMsg(msgEl,'✕ '+d.message,'err');
+  }catch(e){ setMsg(msgEl,'✕ health.php error','err'); }
+}
+
+async function deleteHealth(id){
+  if(!getPerms()?.canDelete){ toast('Ntabwo ufite uburenganzira','err'); return; }
+  try{
+    const d=await api(`${BASE}/delete_health.php`,{method:'POST',body:JSON.stringify({id})});
+    if(d.success){toast('Health deleted','ok');loadHealthHistory();loadAnimals();}
+    else toast('Byahagaritse: '+(d.message||'Error'),'err');
+  }catch(e){ toast('delete_health.php error','err'); }
+}
+
+/* ══════════════════════════════════════════
+   SCAN LOGS
+══════════════════════════════════════════ */
+function setScanStat(logs){
+  const today=new Date().toISOString().slice(0,10);
+  const n=(logs||[]).filter(l=>l.scannedAt&&l.scannedAt.startsWith(today)).length;
+  const e=document.getElementById('stat-scans'); if(e) e.textContent=n;
+}
+
+async function loadScanLogs(){
+  const tbody  = document.getElementById('scanTable');
+  const ovLogs = document.getElementById('ov-logs');
+
+  try{
+    const d=await api(`${BASE}/scan_log.php`);
+    if(!d.success){
+      if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">❌ Byahagaritse.</td></tr>`;
+      setScanStat([]);
+      return;
+    }
+
+    const logs=d.logs||[];
+    setScanStat(logs);
+    const perms=getPerms();
+
+    if(!logs.length){
+      if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Nta scan logs zihari.</td></tr>`;
+      if(ovLogs) ovLogs.innerHTML=`<tr class="empty-row"><td colspan="4">Nta scans.</td></tr>`;
+      return;
+    }
+
+    if(tbody) tbody.innerHTML=logs.map(l=>`
+      <tr>
+        <td class="tag-mono" style="color:var(--muted)">${l.id}</td>
+        <td><span class="tag-mono">${esc(l.tagId)}</span></td>
+        <td>${esc(l.name??'—')}</td>
+        <td>${esc(l.animalType??'—')}</td>
+        <td><span class="pill ${l.status==='FOUND'?'pill-found':'pill-nf'}">${esc(l.status)}</span></td>
+        <td style="font-size:12.5px">${esc(l.scannedAt)}</td>
+        <td>${perms?.canDelete?`<button class="btn btn-danger btn-sm" data-action="del-l" data-lid="${l.id}"><svg class="ico"><use href="#i-trash"></use></svg></button>`:''}</td>
+      </tr>`).join('');
+
+    if(ovLogs) ovLogs.innerHTML=logs.slice(0,5).map(l=>`
+      <tr>
+        <td><span class="tag-mono">${esc(l.tagId)}</span></td>
+        <td>${esc(l.name??'—')}</td>
+        <td><span class="pill ${l.status==='FOUND'?'pill-found':'pill-nf'}">${esc(l.status)}</span></td>
+        <td style="font-size:11.5px;color:var(--muted)">${(l.scannedAt||'').slice(11,16)}</td>
+      </tr>`).join('');
+
+  }catch(e){
+    if(tbody) tbody.innerHTML=`<tr class="empty-row"><td colspan="7">❌ scan_log.php error.</td></tr>`;
+    setScanStat([]);
+  }
+}
+
+async function deleteScanLog(id){
+  if(!getPerms()?.canDelete){ toast('Ntabwo ufite uburenganzira','err'); return; }
+  try{
+    const d=await api(`${BASE}/delete_scanlog.php`,{method:'POST',body:JSON.stringify({id})});
+    if(d.success){toast('Log deleted','ok');loadScanLogs();}
+    else toast('Byahagaritse: '+(d.message||'Error'),'err');
+  }catch(e){ toast('delete_scanlog.php error','err'); }
+}
+
+function showClearLogsDlg(){
+  showDlg('Siba Logs Zose','Siba buri log yose?',clearAllLogs);
+}
+
+async function clearAllLogs(){
+  if(!getPerms()?.canClearLogs){ toast('Ntabwo ufite uburenganzira','err'); return; }
+  try{
+    const d=await api(`${BASE}/clear_scanlogs.php`,{method:'POST',body:JSON.stringify({clear:true})});
+    if(d.success){toast('Logs cleared','ok');loadScanLogs();}
+    else toast('Byahagaritse: '+(d.message||'Error'),'err');
+  }catch(e){ toast('clear_scanlogs.php error','err'); }
+}
+
+/* ══════════════════════════════════════════
+   ADMIN REQUESTS
+══════════════════════════════════════════ */
+async function loadUserRequests(){
+  const tbody = document.getElementById("reqTable");
+  if(!tbody) return;
+
+  if(!currentUser || currentUser.role !== "admin"){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Access denied.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Loading…</td></tr>`;
+
+  try{
+    const res = await fetch(`${BASE}/pending_users.php`);
+    const data = await res.json();
+
+    if(!data.success){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Failed.</td></tr>`;
+      return;
+    }
+
+    if(data.requests.length === 0){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No pending requests.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    data.requests.forEach(r=>{
+      tbody.innerHTML += `
+        <tr>
+          <td class="tag-mono">${r.id}</td>
+          <td>${esc(r.fullName)}</td>
+          <td>${esc(r.username)}</td>
+          <td>${esc(r.email)}</td>
+          <td>${esc(r.phone)}</td>
+          <td><span class="pill">${esc(r.role)}</span></td>
+          <td>${esc(r.reason ?? "-")}</td>
+          <td>
+            <button class="btn btn-accent btn-sm" onclick="approveRequest(${r.id})"><svg class="ico"><use href="#i-check"></use></svg>Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectRequest(${r.id})"><svg class="ico"><use href="#i-x"></use></svg>Reject</button>
+          </td>
+        </tr>
+      `;
+    });
+
+  }catch(e){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">pending_users.php error</td></tr>`;
+  }
+}
+
+async function approveRequest(id){
+  showDlg("Approve User", "Approve this request?", async ()=>{
+    try{
+      const res = await fetch(`${BASE}/approve_user.php`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ requestId:id, adminId: currentUser.id })
+      });
+
+      const data = await res.json();
+
+      if(data.success){
+        toast("User approved", "ok");
+        loadUserRequests();
+      } else {
+        toast("Failed: " + data.message, "err");
+      }
+
+    }catch(e){
+      toast("approve_user.php error", "err");
+    }
+  });
+}
+
+async function rejectRequest(id){
+  showDlg("Reject User", "Reject this request?", async ()=>{
+    try{
+      const res = await fetch(`${BASE}/reject_user.php`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ requestId:id, adminId: currentUser.id })
+      });
+
+      const data = await res.json();
+
+      if(data.success){
+        toast("Request rejected", "info");
+        loadUserRequests();
+      } else {
+        toast("Failed: " + data.message, "err");
+      }
+
+    }catch(e){
+      toast("reject_user.php error", "err");
+    }
+  });
+}
+// Polling: Kugenzura buri masegonda 3 niba hari Tag nshya
+let lastTagId = '';
+
+function checkForNewTag() {
+    fetch('/livestock/livestocks/register.php?action=fetch')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tagId) {
+                // Hita ushyira Tag ID mu mwanya wo kwandikamo (Input field)
+                const tagInput = document.getElementById('tagIdInput'); // Hindura ID ukurikije iyawe
+                if (tagInput) {
+                    tagInput.value = data.tagId;
+                    tagInput.focus();
+                }
+                
+                // Niba ushaka guhita ufotora form (Auto-submit)
+                // document.getElementById('animalForm').submit();
+                
+                // Kugira ngo tutazana inshuro nyinshi
+                if (data.tagId !== lastTagId) {
+                    lastTagId = data.tagId;
+                    // Kwerekana notification (niba ikenewe)
+                    alert('New Tag Scanned: ' + data.tagId);
+                }
+            }
+        })
+        .catch(err => console.error('Polling error:', err));
+}
+
+// Tangira polling buri masegonda 2
+setInterval(checkForNewTag, 2000);
+
+/* ══════════════════════════════════════════
+   RELOAD
+══════════════════════════════════════════ */
+function reloadAll(){
+  checkMode();
+  loadAnimals();
+  loadScanLogs();
+}
+</script>
+
+</body>
+</html>
